@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"html/template"
 	"log"
 	"net/http"
@@ -28,16 +29,17 @@ type Context struct {
 	Data  string
 }
 
-var context Context
-var config Confiuration
+var context = Context{}
+var config = Confiuration{}
+
+func Index(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	render(w, "index.gohtml")
+}
 
 func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	log.Println("access", req.Host, req.RequestURI)
 
 	pagename := ps.ByName("page")
-	if len(pagename) == 0 {
-		pagename = "index"
-	}
 	if _, err := os.Stat(strings.Replace(config.Templates, "*", pagename, 1)); err != nil {
 		pagename = "not_found"
 		log.Println("not_found", req.Host, req.RequestURI)
@@ -66,10 +68,13 @@ func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 }
 
 func init() {
+	// read cli flags
+	config_file := flag.String("config", "config.json", "configuration file")
+	flag.Parse()
+
 	// get configuration
-	cfg, _ := os.Open("config.json")
+	cfg, _ := os.Open(*config_file)
 	decoder := json.NewDecoder(cfg)
-	config = Confiuration{}
 	err := decoder.Decode(&config)
 	if err != nil {
 		log.Fatal("Init: ", err)
@@ -77,10 +82,6 @@ func init() {
 
 	// application init
 	tpl = template.Must(template.ParseGlob(config.Templates))
-	context = Context{
-		Title: "Test Title",
-		Data:  "Test Data",
-	}
 }
 
 func render(w http.ResponseWriter, tpl_name string) {
@@ -92,8 +93,8 @@ func render(w http.ResponseWriter, tpl_name string) {
 
 func main() {
 	router := httprouter.New()
-	router.GET("/", Page)
-	router.GET("/mod_:page", Page)
+	router.GET("/", Index)
+	router.GET("/page/:page", Page)
 	router.GET("/api/:name", ApiModule)
 	router.ServeFiles("/static/*filepath", http.Dir("./static"))
 	log.Println("Server starting on ", config.ServerAddress)
