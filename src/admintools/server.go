@@ -17,6 +17,7 @@ import (
 var tpl *template.Template
 
 type Confiuration struct {
+	BaseURL       string
 	ServerAddress string
 	StaticFolder  string
 	StaticAddress string
@@ -25,8 +26,9 @@ type Confiuration struct {
 }
 
 type Context struct {
-	Title string
-	Data  string
+	Title   string
+	Data    string
+	BaseURL string
 }
 
 var context = Context{}
@@ -82,6 +84,7 @@ func init() {
 
 	// application init
 	tpl = template.Must(template.ParseGlob(config.Templates))
+	context.BaseURL = config.BaseURL
 }
 
 func render(w http.ResponseWriter, tpl_name string) {
