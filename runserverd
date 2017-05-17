@@ -46,6 +46,7 @@ case "$1" in
         PID=$!
         echo $PID > "$WORKDIR/$NAME.pid"
         echo "Started with pid $PID - Logging to $WORKDIR/$NAME.log"
+	sleep 2
 	tail -n5  "$WORKDIR/$NAME.log"
 	exit 0
         ;;

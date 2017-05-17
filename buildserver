@@ -7,6 +7,9 @@ if [ ! `echo "$GOPATH" | grep "$CURRENT_DIR"` ]; then
 fi
 
 go build -o admintools src/admintools/*.go
-./runserverd restart
+
+if [ "$?" == 0 ]; then
+    ./runserverd restart
+fi
 
 exit 0
