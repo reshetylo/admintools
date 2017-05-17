@@ -1,0 +1,8 @@
+name: test
+version: 1.0
+default_timeout: 10
+commands:
+    -
+        command: "modules/test/test.sh {{host}} {{v1}} {{v2}} {{v3}}"
+        required:
+            - host: '\A([0-9]{3}.[0-9]{3}.[0-9]{3}.[0-9]{3}|[0-9A-Za-z._-]+)\z'
