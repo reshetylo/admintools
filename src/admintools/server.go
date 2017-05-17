@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/reshetylo/cmdexec"
 )
 
 var tpl *template.Template
@@ -23,30 +22,35 @@ type Confiuration struct {
 	StaticAddress string
 	Templates     string
 	Modules       string
+	DefaultModule string
 }
 
 type Context struct {
-	Title   string
-	Data    string
-	BaseURL string
+	Title       string
+	Data        string
+	CurrentPage string
+	Version     string
+	BaseURL     string
 }
 
-var context = Context{}
+var render_context = Context{Version:"1.0"}
 var config = Confiuration{}
 
 func Index(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	render(w, "index.gohtml")
+	http.Redirect(w, req, config.BaseURL+"/page/"+config.DefaultModule, 302)
 }
 
 func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	log.Println("access", req.Host, req.RequestURI)
+	log.Println("page access", req.Host, req.RequestURI)
 
 	pagename := ps.ByName("page")
 	if _, err := os.Stat(strings.Replace(config.Templates, "*", pagename, 1)); err != nil {
 		pagename = "not_found"
 		log.Println("not_found", req.Host, req.RequestURI)
 	}
-	render(w, pagename+".gohtml")
+	ctx := render_context
+	ctx.CurrentPage = pagename
+	render(w, pagename+".gohtml", ctx)
 }
 
 func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
@@ -55,17 +59,10 @@ func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	req_url, _ := url.ParseRequestURI(req.RequestURI)
 	param, _ := url.ParseQuery(req_url.RawQuery)
 	log.Println("api_module", req.Host, req.RequestURI)
+	log.Print(filecache)
 
 	if _, err := os.Stat(runfile); err == nil {
-		cmdexec.RenderFile(runfile, param, w)
-		//response := executor.ExecFile(runfile, param)
-		//responsejson := json.NewEncoder(reponse)
-		//		log.Println(response)
-		//		w.Header().Set("Content-Type", "application/json")
-		//		w.Write([]byte(response))
-		//		for _, result := range response {
-		//			w.Write([]byte(result))
-		//		}
+		RenderFile(runfile, param, w)
 	}
 }
 
@@ -84,13 +81,16 @@ func init() {
 
 	// application init
 	tpl = template.Must(template.ParseGlob(config.Templates))
-	context.BaseURL = config.BaseURL
+	render_context.BaseURL = config.BaseURL
 }
 
-func render(w http.ResponseWriter, tpl_name string) {
-	err := tpl.ExecuteTemplate(w, tpl_name, context)
+func render(w http.ResponseWriter, tpl_name string, ctx interface{}) {
+	if ctx == nil {
+		ctx = render_context
+	}
+	err := tpl.ExecuteTemplate(w, tpl_name, ctx)
 	if err != nil {
-		log.Fatalln("Render: ", err)
+		log.Println("ERROR Render: ", err)
 	}
 }
 
