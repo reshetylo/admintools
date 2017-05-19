@@ -13,9 +13,8 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-var tpl *template.Template
-
-type Confiuration struct {
+// configuration file structure
+type Configuration struct {
 	BaseURL       string
 	ServerAddress string
 	StaticFolder  string
@@ -25,6 +24,7 @@ type Confiuration struct {
 	DefaultModule string
 }
 
+// render context structure
 type Context struct {
 	Title       string
 	Data        string
@@ -34,12 +34,15 @@ type Context struct {
 }
 
 var render_context = Context{Version:"1.0"}
-var config = Confiuration{}
+var tpl *template.Template
+var config = Configuration{}
 
+// fucntion for index / route. redirects to default module from configuration file
 func Index(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	http.Redirect(w, req, config.BaseURL+"/page/"+config.DefaultModule, 302)
 }
 
+// function for /page/:name routes
 func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	log.Println("page access", req.Host, req.RequestURI)
 
@@ -53,6 +56,7 @@ func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	render(w, pagename+".gohtml", ctx)
 }
 
+// function for /api/:name routes
 func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	runfile := strings.Replace(config.Modules, "*", ps.ByName("name"), 1)
 
@@ -66,24 +70,7 @@ func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	}
 }
 
-func init() {
-	// read cli flags
-	config_file := flag.String("config", "config.json", "configuration file")
-	flag.Parse()
-
-	// get configuration
-	cfg, _ := os.Open(*config_file)
-	decoder := json.NewDecoder(cfg)
-	err := decoder.Decode(&config)
-	if err != nil {
-		log.Fatal("Init: ", err)
-	}
-
-	// application init
-	tpl = template.Must(template.ParseGlob(config.Templates))
-	render_context.BaseURL = config.BaseURL
-}
-
+// render templates helper function
 func render(w http.ResponseWriter, tpl_name string, ctx interface{}) {
 	if ctx == nil {
 		ctx = render_context
@@ -94,7 +81,28 @@ func render(w http.ResponseWriter, tpl_name string, ctx interface{}) {
 	}
 }
 
+// application init. read configuration file, parse some data from it before the server started
+func appInit() {
+	// read command line arguments/flags
+	config_file := flag.String("config", "config.json", "configuration file")
+	flag.Parse()
+
+	// get configuration from defined json file
+	cfg, _ := os.Open(*config_file)
+	decoder := json.NewDecoder(cfg)
+	err := decoder.Decode(&config)
+	if err != nil {
+		log.Fatal("Init: ", err)
+	}
+
+	// application init. parse templates and define Base URL value in global render context
+	tpl = template.Must(template.ParseGlob(config.Templates))
+	render_context.BaseURL = config.BaseURL
+}
+
+// main function. http routes setup and server starts and running here
 func main() {
+	appInit()
 	router := httprouter.New()
 	router.GET("/", Index)
 	router.GET("/page/:page", Page)
