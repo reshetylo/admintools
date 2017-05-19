@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"log"
 )
 
 type Command struct {
@@ -76,32 +77,33 @@ func RenderFile(file string, parameters map[string][]string, w http.ResponseWrit
 //	replacePlaceholders(&filedata)
 	fmt.Println(filedata)
 
-	if err := checkRequiredParameters(&filedata, parameters); err != nil {
+	if err := checkParameters(&filedata, parameters, true); err != nil {
 		var errorData appError
 		errorData.Message = err.Error()
 		errorData.Code = 1
 		w.Write([]byte(ResponseToJSON(errorData)))
-		panic(err)
+		log.Print(err)
+	}else{
+		for _, cmd := range filedata.Commands {
+			fmt.Printf("Running: %v\n", cmd)
+			var args []string
+			command := strings.Split(cmd.Command, " ")
+			if len(command) > 1 {
+				args = command[1:]
+			}
+			if cmd.Timeout == 0 {
+				cmd.Timeout = default_timeout
+			}
+			w.Write([]byte(RunCommand(command[0], cmd.Timeout, args)))
+		}
 	}
 
-	for _, cmd := range filedata.Commands {
-		fmt.Printf("Running: %v\n", cmd)
-		var args []string
-		command := strings.Split(cmd.Command, " ")
-		if len(command) > 1 {
-			args = command[1:]
-		}
-		if cmd.Timeout == 0 {
-			cmd.Timeout = default_timeout
-		}
-		w.Write([]byte(RunCommand(command[0], cmd.Timeout, args)))
-	}
 }
 
 func ExecFile(file string, parameters map[string][]string) string {
 	filedata := readFile(file)
 
-	if err := checkRequiredParameters(&filedata, parameters); err != nil {
+	if err := checkParameters(&filedata, parameters, true); err != nil {
 		var errorData appError
 		errorData.Message = err.Error()
 		errorData.Code = 1
@@ -143,13 +145,17 @@ func RunCommand(cmd string, timeout int, args []string) string {
 	return string(result[:])
 }
 
-func checkRequiredParameters(filedata *fileFormat, parameters map[string][]string) (err error) {
-	// check required params
+func checkParameters(filedata *fileFormat, parameters map[string][]string, required bool) (err error) {
+	// check params
 	for index, cmd := range filedata.Commands {
-		for _, req := range cmd.Required {
+		loop_through := cmd.Validate
+		if required {
+			loop_through = cmd.Required
+		}
+		for _, req := range loop_through {
 			for name, expr := range req {
-				if len(parameters[name]) == 0 {
-					return errors.New(fmt.Sprintf("Parameter %s is missing", name))
+				if len(parameters[name]) == 0 && required {
+					return errors.New(fmt.Sprintf("Parameter '%s' is missing", name))
 				} else {
 					for _, value := range parameters[name] {
 						re := regexp.MustCompile(expr)
@@ -160,11 +166,16 @@ func checkRequiredParameters(filedata *fileFormat, parameters map[string][]strin
 						if rexp != true {
 							return errors.New(fmt.Sprintf("Value '%s' is not valid.", name))
 						}
+						log.Print(filedata.Commands[index].Command)
 						filedata.Commands[index].Command = strings.Replace(filedata.Commands[index].Command, "{{"+name+"}}", value, -1)
 					}
 				}
 			}
 		}
+
+	}
+	if required {
+		return checkParameters(filedata, parameters, false)
 	}
 	return nil
 }
