@@ -6,6 +6,11 @@ if [ ! `echo "$GOPATH" | grep "$CURRENT_DIR"` ]; then
     export GOPATH="$CURRENT_DIR:$HOME/go"
 fi
 
+if [ "$1" == "test" ]; then
+    go test ./... -v
+    exit 0
+fi
+
 go build -o admintools src/admintools/*.go
 
 if [ "$?" == 0 ]; then

@@ -10,6 +10,7 @@ func TestNew(t *testing.T) {
 	cmd := Command{Command: "pwd", Timeout: 3}
 	c.AddCommand(cmd)
 	exe, _ := exec.Command("pwd").Output()
+	t.Log(exe)
 	if string(exe) != c.RunCommands() {
 		t.Error("RunCommands is not working.")
 	}
