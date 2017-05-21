@@ -1,6 +1,13 @@
 #! /bin/bash
 # Go server build script
 
+#
+# Description:
+# ./buildserver		runs tests and then build
+# ./buildserver test	runs tests
+# ./buildserver build	performs server build. if build successful - server restarts
+#
+
 CURRENT_DIR=`pwd`
 if [ ! `echo "$GOPATH" | grep "$CURRENT_DIR"` ]; then
     export GOPATH="$CURRENT_DIR:$HOME/go"
@@ -8,13 +15,16 @@ fi
 
 if [ "$1" == "test" ]; then
     go test ./... -v
-    exit 0
+    exit $?
 fi
 
-go build -o admintools src/admintools/*.go
-
-if [ "$?" == 0 ]; then
-    ./runserverd restart
+if [ "$1" == "build" ]; then
+    go build -o admintools src/admintools/*.go
+    if [ "$?" == 0 ]; then
+        ./runserverd restart
+    fi
+else
+    $0 test && $0 build
 fi
 
 exit 0
