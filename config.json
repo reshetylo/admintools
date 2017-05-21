@@ -1,7 +1,7 @@
 {
-	"BaseURL": "http://192.168.31.10:8000",
+	"BaseURL": "",
 	"ServerAddress": ":8000",
 	"Templates": "templates/*.gohtml",
 	"Modules": "modules/*.yaml",
-    "DefaultModule": "network"
+	"DefaultModule": "network"
 }
