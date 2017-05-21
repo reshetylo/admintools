@@ -1,0 +1,7 @@
+{
+	"Name": "Testing Module",
+	"Version": "1.0",
+	"Template": "",
+	"Enabled": true,
+	"AccessLevel": "tester"
+}

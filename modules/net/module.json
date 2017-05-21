@@ -1,0 +1,7 @@
+{
+	"Name": "Network Module",
+	"Version": "1.0",
+	"Template": "network",
+	"Enabled": true,
+	"AccessLevel": "guest"
+}
