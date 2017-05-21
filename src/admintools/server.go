@@ -33,12 +33,12 @@ type Context struct {
 	BaseURL     string
 }
 
-var render_context = Context{Version:"1.0"}
+var render_context = Context{Version: "1.0"}
 var tpl *template.Template
 var config = Configuration{}
 
-// fucntion for index / route. redirects to default module from configuration file
-func Index(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+// function for index / route. redirects to default module from configuration file
+func Index(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	http.Redirect(w, req, config.BaseURL+"/page/"+config.DefaultModule, 302)
 }
 
