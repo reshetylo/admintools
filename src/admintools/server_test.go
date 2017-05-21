@@ -3,54 +3,50 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
-	//	"os"
 	"testing"
 
 	"github.com/julienschmidt/httprouter"
+	"os"
+	"strings"
 )
 
-//func TestMain(m *testing.M) {
-//	os.Exit(m.Run())
-//}
+func TestMain(m *testing.M) {
 
-var ps httprouter.Params
+	appInit()
+	os.Exit(m.Run())
+}
 
 func TestRedirect(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		Index(w, r, nil)
-	}
-	httpContentCheck(*t, "GET", "/", handler, 302, "")
+	httpContentCheck(t, "GET", "/", 302, "")
 }
 
 func TestPage(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		Page(w, r, ps)
-	}
-	httpContentCheck(*t, "GET", "/page/:name", handler, 200, "")
+	httpContentCheck(t, "GET", "/page/network", 200, "Basic network tools")
+	httpContentCheck(t, "GET", "/page/about", 200, "Admin Tools release "+render_context.Version)
+	httpContentCheck(t, "GET", "/page/not_found", 404, "NOT FOUND")
+	httpContentCheck(t, "GET", "/page/some_not_existing_file", 404, "NOT FOUND")
 }
 
 func TestApi(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		ApiModule(w, r, ps)
-	}
-	httpContentCheck(*t, "GET", "/api/:name", handler, 200, "")
+	httpContentCheck(t, "GET", "/api/test", 200, "{")
 }
 
-func httpContentCheck(t testing.T, rtype string, rpath string, rhandler http.HandlerFunc, estatus int, econtent string) {
+func httpContentCheck(t *testing.T, rmethod string, rpath string, estatus int, econtent string) {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
-	req, err := http.NewRequest(rtype, rpath, nil)
+	req, err := http.NewRequest(rmethod, rpath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	req.RequestURI = rpath
 
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(rhandler)
-
-	// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-	// directly and pass in our Request and ResponseRecorder.
-	handler.ServeHTTP(rr, req)
+	router := httprouter.New()
+	router.GET("/", Index)
+	router.GET("/page/:page", Page)
+	router.GET("/api/:name", ApiModule)
+	router.ServeHTTP(rr, req)
 
 	// Check the status code is what we expect.
 	if status := rr.Code; status != estatus {
@@ -60,10 +56,9 @@ func httpContentCheck(t testing.T, rtype string, rpath string, rhandler http.Han
 
 	// Check the response body is what we expect.
 	if econtent != "" {
-		expected := string(econtent)
-		if rr.Body.String() != expected {
-			t.Errorf("handler returned unexpected body: got %v want %v",
-				rr.Body.String(), expected)
+		if !strings.Contains(rr.Body.String(), econtent) {
+			t.Errorf("%v handler returned unexpected body: got %v want %v",
+				rpath, rr.Body.String(), econtent)
 		}
 	}
 }

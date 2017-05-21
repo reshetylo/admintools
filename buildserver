@@ -14,7 +14,7 @@ if [ ! `echo "$GOPATH" | grep "$CURRENT_DIR"` ]; then
 fi
 
 if [ "$1" == "test" ]; then
-    go test ./... -v
+    go test ./... -v -config=`pwd`/config_test.json
     exit $?
 fi
 

@@ -1,0 +1,7 @@
+{
+  "BaseURL": "",
+  "ServerAddress": ":8000",
+  "Templates": "../../templates/*.gohtml",
+  "Modules": "../../modules/*.yaml",
+  "DefaultModule": "network"
+}
