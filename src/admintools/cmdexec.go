@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os/exec"
 	"regexp"
 	"strings"
 	"time"
-	"log"
 )
 
 type Command struct {
@@ -74,7 +74,7 @@ func (c *Command) Run() string {
 func RenderFile(file string, parameters map[string][]string, w http.ResponseWriter) {
 	filedata := readFile(file)
 	fmt.Println(filecache)
-//	replacePlaceholders(&filedata)
+	//	replacePlaceholders(&filedata)
 	fmt.Println(filedata)
 
 	if err := checkParameters(&filedata, parameters, true); err != nil {
@@ -83,7 +83,7 @@ func RenderFile(file string, parameters map[string][]string, w http.ResponseWrit
 		errorData.Code = 1
 		w.Write([]byte(ResponseToJSON(errorData)))
 		log.Print(err)
-	}else{
+	} else {
 		for _, cmd := range filedata.Commands {
 			fmt.Printf("Running: %v\n", cmd)
 			var args []string
