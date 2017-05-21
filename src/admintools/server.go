@@ -33,6 +33,8 @@ type Context struct {
 	BaseURL     string
 }
 
+const notFoundPage = "not_found"
+
 var render_context = Context{Version: "1.0"}
 var tpl *template.Template
 var config = Configuration{}
@@ -48,23 +50,30 @@ func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 
 	pagename := ps.ByName("page")
 	if _, err := os.Stat(strings.Replace(config.Templates, "*", pagename, 1)); err != nil {
-		pagename = "not_found"
-		log.Println("not_found", req.Host, req.RequestURI)
+		pagename = notFoundPage
+		log.Println(notFoundPage, req.Host, req.RequestURI)
 	}
 	ctx := render_context
 	ctx.CurrentPage = pagename
+	if pagename == notFoundPage {
+		w.WriteHeader(404)
+	}
 	render(w, pagename+".gohtml", ctx)
 }
 
 // function for /api/:name routes
 func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	log.Println("api access", req.Host, req.RequestURI)
+
 	runfile := strings.Replace(config.Modules, "*", ps.ByName("name"), 1)
-
-	req_url, _ := url.ParseRequestURI(req.RequestURI)
-	param, _ := url.ParseQuery(req_url.RawQuery)
-	log.Println("api_module", req.Host, req.RequestURI)
-	log.Print(filecache)
-
+	req_url, puerr := url.ParseRequestURI(req.RequestURI)
+	if puerr != nil {
+		log.Print("Can not parse request URL: ", puerr, req)
+	}
+	param, pqerr := url.ParseQuery(req_url.RawQuery)
+	if pqerr != nil {
+		log.Print("Can not parse request Query: ", pqerr, req_url)
+	}
 	if _, err := os.Stat(runfile); err == nil {
 		RenderFile(runfile, param, w)
 	}
@@ -82,7 +91,7 @@ func render(w http.ResponseWriter, tpl_name string, ctx interface{}) {
 }
 
 // application init. read configuration file, parse some data from it before the server started
-func appInit() {
+func init() {
 	// read command line arguments/flags
 	config_file := flag.String("config", "config.json", "configuration file")
 	flag.Parse()
@@ -102,7 +111,6 @@ func appInit() {
 
 // main function. http routes setup and server starts and running here
 func main() {
-	appInit()
 	router := httprouter.New()
 	router.GET("/", Index)
 	router.GET("/page/:page", Page)

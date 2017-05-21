@@ -11,8 +11,6 @@ import (
 )
 
 func TestMain(m *testing.M) {
-
-	appInit()
 	os.Exit(m.Run())
 }
 
