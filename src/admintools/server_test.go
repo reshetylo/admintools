@@ -5,9 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/julienschmidt/httprouter"
 	"os"
 	"strings"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 func TestMain(m *testing.M) {
@@ -26,7 +27,10 @@ func TestPage(t *testing.T) {
 }
 
 func TestApi(t *testing.T) {
-	httpContentCheck(t, "GET", "/api/test", 200, "{")
+	httpContentCheck(t, "GET", "/api/test/test", 200, "Parameter 'host' is missing")
+	httpContentCheck(t, "GET", "/api/test/test?host=https://test.com", 200, "Value 'host' is not valid")
+	httpContentCheck(t, "GET", "/api/test/test?host=test.com&v2=value2", 200, "Parameter 'v1' is missing")
+	httpContentCheck(t, "GET", "/api/test/test?host=test.com&v1=value1&v2=value2&v3=123", 200, "scripts/test.sh test.com value1 value2 123")
 }
 
 func httpContentCheck(t *testing.T, rmethod string, rpath string, estatus int, econtent string) {
@@ -43,7 +47,7 @@ func httpContentCheck(t *testing.T, rmethod string, rpath string, estatus int, e
 	router := httprouter.New()
 	router.GET("/", Index)
 	router.GET("/page/:page", Page)
-	router.GET("/api/:name", ApiModule)
+	router.GET("/api/:module/:name", ApiModule)
 	router.ServeHTTP(rr, req)
 
 	// Check the status code is what we expect.
@@ -52,7 +56,7 @@ func httpContentCheck(t *testing.T, rmethod string, rpath string, estatus int, e
 			status, estatus)
 	}
 
-	// Check the response body is what we expect.
+	// Check the response body contents is what we expect.
 	if econtent != "" {
 		if !strings.Contains(rr.Body.String(), econtent) {
 			t.Errorf("%v handler returned unexpected body: got %v want %v",
