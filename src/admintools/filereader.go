@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"time"
 
@@ -10,10 +9,10 @@ import (
 )
 
 type fileFormat struct {
-	Name           string
-	Version        string
-	DefaultTimeout int       "default_timeout"
-	Commands       []Command "commands"
+	Name           string    `json:"name" yaml:"name"`
+	Version        string    `json:"version" yaml:"version"`
+	DefaultTimeout int       `json:"default_timeout" yaml:"default_timeout"`
+	Commands       []Command `json:"commands" yaml:"commands"`
 }
 
 type fileCache map[string]struct {
@@ -23,27 +22,35 @@ type fileCache map[string]struct {
 
 var filecache = make(fileCache, 100)
 
-func readFile(file string) fileFormat {
-	var filedata fileFormat
-	filedata, err := getCache(file)
+func readFile(file string) (filedata fileFormat, err error) {
+	filedata, err = getCache(file)
 	if err != nil {
 		// cache does not exist. read config file
 		source, err := ioutil.ReadFile(file)
 		if err != nil {
-			panic(err)
+			return filedata, errorNew("Can not read file:", file, err.Error())
 		}
-		err = parseYAML(source, &filedata)
+
+		format := file[len(file)-4:]
+		if format == "yaml" {
+			err = parseYAML(source, &filedata)
+		} else if format == "json" {
+			err = parseJSON(source, &filedata)
+		} else {
+			return filedata, errorNew("Do not support file format:", format)
+		}
+
 		if err != nil {
-			panic(err)
+			return filedata, errorNew("Can not parse file:", file, err.Error())
 		}
 		saveCache(file, filedata)
 	}
-	return filedata
+	return filedata, nil
 }
 
 func getCache(file string) (fileFormat, error) {
 	if filecache[file].time <= time.Now().Unix()-fileCacheTime {
-		return fileFormat{}, errors.New("Cache expired")
+		return fileFormat{}, errorNew("Cache expired")
 	} else {
 		cacheData := filecache[file].file
 		commands := make([]Command, len(filecache[file].file.Commands))
