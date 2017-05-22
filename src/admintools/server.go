@@ -38,6 +38,7 @@ const notFoundPage = "not_found"
 var render_context = Context{Version: "1.0"}
 var tpl *template.Template
 var config = Configuration{}
+var workDir string
 
 // function for index / route. redirects to default module from configuration file
 func Index(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
@@ -65,7 +66,14 @@ func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	log.Println("api access", req.Host, req.RequestURI)
 
-	runfile := strings.Replace(config.Modules, "*", ps.ByName("name"), 1)
+	module := ""
+	if ps.ByName("module") != "" {
+		module += ps.ByName("module") + "/"
+	}
+	runfile := workDir + "/" + strings.Replace(config.Modules, "*", module+ps.ByName("name"), 1)
+	// change work dir
+	//log.Print("Work dir:", workDir+"/"+runfile[:strings.LastIndex(runfile, ps.ByName("name"))])
+	os.Chdir(runfile[:strings.LastIndex(runfile, ps.ByName("name"))])
 	req_url, puerr := url.ParseRequestURI(req.RequestURI)
 	if puerr != nil {
 		log.Print("Can not parse request URL: ", puerr, req)
@@ -97,25 +105,42 @@ func init() {
 	flag.Parse()
 
 	// get configuration from defined json file
-	cfg, _ := os.Open(*config_file)
-	decoder := json.NewDecoder(cfg)
-	err := decoder.Decode(&config)
+	cfg, err := os.Open(*config_file)
 	if err != nil {
-		log.Fatal("Init: ", err)
+		log.Fatal("Can not open configuration file: ", *config_file, err)
+	}
+	decoder := json.NewDecoder(cfg)
+	err = decoder.Decode(&config)
+	if err != nil {
+		log.Fatal("Can not decode data from config file: ", err)
 	}
 
 	// application init. parse templates and define Base URL value in global render context
 	tpl = template.Must(template.ParseGlob(config.Templates))
 	render_context.BaseURL = config.BaseURL
+
+	workDir, err = os.Getwd()
+	if err != nil {
+		log.Print("Can not get working directory")
+	}
 }
 
 // main function. http routes setup and server starts and running here
 func main() {
+	// serve files from static folder
+	fileServer := http.FileServer(http.Dir("./static"))
+
+	// router configuration
 	router := httprouter.New()
 	router.GET("/", Index)
 	router.GET("/page/:page", Page)
-	router.GET("/api/:name", ApiModule)
-	router.ServeFiles("/static/*filepath", http.Dir("./static"))
+	router.GET("/api/:module/:name", ApiModule)
+	router.GET("/static/*filepath", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		w.Header().Set("Vary", "Accept-Encoding")
+		w.Header().Set("Cache-Control", "public, max-age=432000") // 5 day cache
+		r.URL.Path = p.ByName("filepath")
+		fileServer.ServeHTTP(w, r)
+	})
 	log.Println("Server starting on ", config.ServerAddress)
 	err := http.ListenAndServe(config.ServerAddress, router)
 	if err != nil {
