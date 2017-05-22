@@ -14,10 +14,10 @@ import (
 )
 
 type Command struct {
-	Command  string              "command"
-	Required []map[string]string "required"
-	Validate []map[string]string "validate"
-	Timeout  int                 "timeout"
+	Command  string              `json:"command" yaml:"command"`
+	Required []map[string]string `json:"required" yaml:"required"`
+	Validate []map[string]string `json:"validate" yaml:"validate"`
+	Timeout  int                 `json:"timeout" yaml:"timeout"`
 }
 
 type Commands []Command
@@ -72,17 +72,13 @@ func (c *Command) Run() string {
 }
 
 func RenderFile(file string, parameters map[string][]string, w http.ResponseWriter) {
-	filedata := readFile(file)
-	fmt.Println(filecache)
-	//	replacePlaceholders(&filedata)
-	fmt.Println(filedata)
+	filedata, err := readFile(file)
+	if err != nil {
+		returnError(w, err, 100)
+	}
 
-	if err := checkParameters(&filedata, parameters, true); err != nil {
-		var errorData appError
-		errorData.Message = err.Error()
-		errorData.Code = 1
-		w.Write([]byte(ResponseToJSON(errorData)))
-		log.Print(err)
+	if err = checkParameters(&filedata, parameters, true); err != nil {
+		returnError(w, err, 110)
 	} else {
 		for _, cmd := range filedata.Commands {
 			fmt.Printf("Running: %v\n", cmd)
@@ -98,34 +94,6 @@ func RenderFile(file string, parameters map[string][]string, w http.ResponseWrit
 		}
 	}
 
-}
-
-func ExecFile(file string, parameters map[string][]string) string {
-	filedata := readFile(file)
-
-	if err := checkParameters(&filedata, parameters, true); err != nil {
-		var errorData appError
-		errorData.Message = err.Error()
-		errorData.Code = 1
-		return ResponseToJSON(errorData)
-	}
-
-	var returndata jsonResponse
-	returndata.Result = make(map[string]string, len(filedata.Commands))
-	for _, cmd := range filedata.Commands {
-		fmt.Printf("Running: %v\n", cmd)
-		var args []string
-		command := strings.Split(cmd.Command, " ")
-		if len(command) > 1 {
-			args = command[1:]
-		}
-		if cmd.Timeout == 0 {
-			cmd.Timeout = default_timeout
-		}
-		returndata.Result[command[0]] = RunCommand(command[0], cmd.Timeout, args)
-	}
-
-	return ResponseToText(returndata)
 }
 
 func InteractiveExec(w http.ResponseWriter, file string, parameters map[string][]string) {
@@ -166,7 +134,6 @@ func checkParameters(filedata *fileFormat, parameters map[string][]string, requi
 						if rexp != true {
 							return errors.New(fmt.Sprintf("Value '%s' is not valid.", name))
 						}
-						log.Print(filedata.Commands[index].Command)
 						filedata.Commands[index].Command = strings.Replace(filedata.Commands[index].Command, "{{"+name+"}}", value, -1)
 					}
 				}
@@ -180,12 +147,6 @@ func checkParameters(filedata *fileFormat, parameters map[string][]string, requi
 	return nil
 }
 
-func replacePlaceholders(fd *fileFormat) {
-	for index, cmd := range fd.Commands {
-		fd.Commands[index].Command = strings.Replace(cmd.Command, "{{", "", -1)
-	}
-}
-
 func ResponseToText(response jsonResponse) string {
 	text := ""
 	for _, result := range response.Result {
@@ -197,4 +158,26 @@ func ResponseToText(response jsonResponse) string {
 func ResponseToJSON(response interface{}) string {
 	encode, _ := json.Marshal(response)
 	return string(encode)
+}
+
+func returnError(w http.ResponseWriter, err error, code int) {
+	var errorData appError
+	errorData.Message = err.Error()
+	errorData.Code = code
+	w.Write([]byte(ResponseToJSON(errorData)))
+	log.Print(errorData)
+}
+
+func replacePlaceholders(fd *fileFormat) {
+	for index, cmd := range fd.Commands {
+		fd.Commands[index].Command = strings.Replace(cmd.Command, "{{", "", -1)
+	}
+}
+
+func errorNew(vars ...string) error {
+	var result string
+	for _, v := range vars {
+		result += fmt.Sprintf(v)
+	}
+	return errors.New(result)
 }
