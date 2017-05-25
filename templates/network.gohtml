@@ -23,7 +23,7 @@
 			    <label for="ping_host">Host or IP</label>&nbsp;
 			    <input type="text" class="form-control" id="ping_host" placeholder="gooogle.com">
 			  </div>
-			  <button type="button" id="button_ping" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area1', '{{.BaseURL}}/api/ping?host='+$('#ping_host').val())" autocomplete="off">Run</button>
+			  <button type="button" id="button_ping" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area1', '{{.BaseURL}}/api/net/ping?host='+$('#ping_host').val())" autocomplete="off">Run</button>
 			</form>
 			<textarea id="response_area1" class="form-control" rows="20" readonly></textarea>
 		</div>
@@ -33,7 +33,7 @@
 			    <label for="ping_host">Host or IP</label>&nbsp;
 			    <input type="text" class="form-control" id="traceroute_host" placeholder="gooogle.com">
 			  </div>
-			  <button type="button" id="button_traceroute" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area2', '{{.BaseURL}}/api/traceroute?host='+$('#traceroute_host').val())" autocomplete="off">Run</button>
+			  <button type="button" id="button_traceroute" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area2', '{{.BaseURL}}/api/net/traceroute?host='+$('#traceroute_host').val())" autocomplete="off">Run</button>
 			</form>
 			<textarea id="response_area2" class="form-control" rows="20" readonly></textarea>
 		</div>
@@ -43,7 +43,7 @@
 			    <label for="ping_host">Domain name</label>&nbsp;
 			    <input type="text" class="form-control" id="dig_host" placeholder="gooogle.com">
 			  </div>
-			  <button type="button" id="button_dig" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area3', '{{.BaseURL}}/api/dig?host='+$('#dig_host').val())" autocomplete="off">Run</button>
+			  <button type="button" id="button_dig" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area3', '{{.BaseURL}}/api/net/dig?host='+$('#dig_host').val())" autocomplete="off">Run</button>
 			</form>
 			<textarea id="response_area3" class="form-control" rows="20" readonly></textarea>
 		</div>
@@ -53,7 +53,7 @@
 			    <label for="ping_host">Host or IP</label>&nbsp;
 			    <input type="text" class="form-control" id="nslookup_host" placeholder="gooogle.com">
 			  </div>
-			  <button type="button" id="button_nslookup" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area4', '{{.BaseURL}}/api/nslookup?host='+$('#nslookup_host').val())" autocomplete="off">Run</button>
+			  <button type="button" id="button_nslookup" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area4', '{{.BaseURL}}/api/net/nslookup?host='+$('#nslookup_host').val())" autocomplete="off">Run</button>
 			</form>
 			<textarea id="response_area4" class="form-control" rows="20" readonly></textarea>
 		</div>
