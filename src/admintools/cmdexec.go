@@ -11,7 +11,12 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"io"
+	"os"
 )
+
+const fileCacheTime = 30   // seconds
+const default_timeout = 10 // seconds
 
 type Command struct {
 	Command  string              `json:"command" yaml:"command"`
@@ -31,8 +36,19 @@ type appError struct {
 	Code    int
 }
 
-const fileCacheTime = 30   // seconds
-const default_timeout = 10 // seconds
+type flushWriter struct {
+	f http.Flusher
+	w io.Writer
+}
+
+func (fw *flushWriter) Write(p []byte) (n int, err error) {
+	_, _ = os.Stdout.Write(p)
+	n, err = fw.w.Write(p)
+	if fw.f != nil {
+		fw.f.Flush()
+	}
+	return
+}
 
 func New() *Commands {
 	cmds := new(Commands)
@@ -45,14 +61,14 @@ func (c *Commands) AddCommand(cmd Command) {
 
 func (c *Commands) RunCommands() string {
 	response := ""
-	for _, cmd := range *c {
-		response += cmd.Run()
-	}
+	//for _, cmd := range *c {
+	//	response += cmd.Run()
+	//}
 	return response
 }
 
-func (c *Command) Run() string {
-	fmt.Printf("Running: %v\n", c)
+func (c *Command) Run(stdout, stderr *flushWriter) {
+	log.Printf("Running: %v\n", c)
 	var args []string
 	command := strings.Split(c.Command, " ")
 	if len(command) > 1 {
@@ -63,25 +79,49 @@ func (c *Command) Run() string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.Timeout)*time.Second)
 	defer cancel()
-	result, err := exec.CommandContext(ctx, command[0], args...).Output()
+	cmdcontext := exec.CommandContext(ctx, command[0], args...)
+	cmdcontext.Stdout = stdout
+	cmdcontext.Stderr = stderr
+	err := cmdcontext.Run()
 	if err != nil {
-		fmt.Printf("Error %v: %v. Res: %s \n", command[0], err, result)
+		log.Printf("Error %v: %v. stdout: %s stderr: %s \n", command[0], err, stdout, stderr)
 	}
-	fmt.Printf("Command %v: Timeout: %d = %s\n", c, c.Timeout, result)
-	return string(result[:])
+	//log.Printf("Command %v: Timeout: %d Output:\n%s\n", c.Command, c.Timeout, out.String())
+	//return out.String()
+}
+
+func InteractiveExec(w http.ResponseWriter, file string, parameters map[string][]string) {
+	filedata, err, jsonerr := validateFile(file, parameters)
+	if err != nil {
+		w.Write([]byte(jsonerr))
+		return
+	}
+
+	w.Header().Set("Connection", "Transfer-Encoding")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Transfer-Encoding", "chunked")
+	fw := flushWriter{w: w}
+	if f, ok := w.(http.Flusher); ok {
+		fw.f = f
+	}
+
+	for _, cmd := range filedata.Commands {
+		cmd.Run(&fw, &fw)
+	}
+
 }
 
 func RenderFile(file string, parameters map[string][]string, w http.ResponseWriter) {
 	filedata, err := readFile(file)
 	if err != nil {
-		returnError(w, err, 100)
+		w.Write([]byte(returnError(err, 100)))
 	}
 
 	if err = checkParameters(&filedata, parameters, true); err != nil {
-		returnError(w, err, 110)
+		w.Write([]byte(returnError(err, 110)))
 	} else {
 		for _, cmd := range filedata.Commands {
-			fmt.Printf("Running: %v\n", cmd)
+			log.Printf("Running: %v\n", cmd)
 			var args []string
 			command := strings.Split(cmd.Command, " ")
 			if len(command) > 1 {
@@ -96,20 +136,16 @@ func RenderFile(file string, parameters map[string][]string, w http.ResponseWrit
 
 }
 
-func InteractiveExec(w http.ResponseWriter, file string, parameters map[string][]string) {
-
-}
-
 func RunCommand(cmd string, timeout int, args []string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
 	result, err := exec.CommandContext(ctx, cmd, args...).Output()
 	if err != nil {
-		fmt.Printf("Error %v: %v. Res: %s \n", cmd, err, result)
+		log.Printf("Error %v: %v. Res: %s \n", cmd, err, result)
 	} else {
-		//fmt.Printf("Command %v: Timeout: %d = %s\n", cmd, timeout, result)
+		//log.Printf("Command %v: Timeout: %d = %s\n", cmd, timeout, result)
 	}
-	fmt.Printf("Command %v: Timeout: %d = %s\n", cmd, timeout, result)
+	log.Printf("Command %v: Timeout: %d = %s\n", cmd, timeout, result)
 	return string(result[:])
 }
 
@@ -147,6 +183,18 @@ func checkParameters(filedata *fileFormat, parameters map[string][]string, requi
 	return nil
 }
 
+func validateFile(file string, parameters map[string][]string) (filedata fileFormat, err error, jsonerror string) {
+	filedata, err = readFile(file)
+	if err != nil {
+		jsonerror = returnError(err, 100)
+	}
+
+	if err = checkParameters(&filedata, parameters, true); err != nil {
+		jsonerror = returnError(err, 110)
+	}
+	return
+}
+
 func ResponseToText(response jsonResponse) string {
 	text := ""
 	for _, result := range response.Result {
@@ -160,12 +208,12 @@ func ResponseToJSON(response interface{}) string {
 	return string(encode)
 }
 
-func returnError(w http.ResponseWriter, err error, code int) {
+func returnError(err error, code int) string {
 	var errorData appError
 	errorData.Message = err.Error()
 	errorData.Code = code
-	w.Write([]byte(ResponseToJSON(errorData)))
 	log.Print(errorData)
+	return ResponseToJSON(errorData)
 }
 
 func replacePlaceholders(fd *fileFormat) {

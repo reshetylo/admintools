@@ -83,7 +83,8 @@ func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 		log.Print("Can not parse request Query: ", pqerr, req_url)
 	}
 	if _, err := os.Stat(runfile); err == nil {
-		RenderFile(runfile, param, w)
+		//RenderFile(runfile, param, w)
+		InteractiveExec(w, runfile, param)
 	}
 }
 
