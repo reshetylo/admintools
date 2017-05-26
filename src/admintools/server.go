@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
+	"path/filepath"
 )
 
 // configuration file structure
@@ -31,6 +32,18 @@ type Context struct {
 	CurrentPage string
 	Version     string
 	BaseURL     string
+	Modules     []Module
+}
+
+// module.json format
+type Module struct {
+	Name        string `json:"Name"`
+	Description string `json:"Description"`
+	Author      string `json:"Author"`
+	Version     string `json:"Version"`
+	Template    string `json:"Template"`
+	Enabled     bool   `json:"Enabled"`
+	AccessLevel string `json:"AccessLevel"`
 }
 
 const notFoundPage = "not_found"
@@ -70,7 +83,7 @@ func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if ps.ByName("module") != "" {
 		module += ps.ByName("module") + "/"
 	}
-	runfile := workDir + "/" + strings.Replace(config.Modules, "*", module+ps.ByName("name"), 1)
+	runfile := workDir + "/" + strings.Replace(config.Modules[:strings.Index(config.Modules,"*")+1], "*", module+ps.ByName("name")+".yaml", 1)
 	// change work dir
 	//log.Print("Work dir:", workDir+"/"+runfile[:strings.LastIndex(runfile, ps.ByName("name"))])
 	os.Chdir(runfile[:strings.LastIndex(runfile, ps.ByName("name"))])
@@ -99,6 +112,31 @@ func render(w http.ResponseWriter, tpl_name string, ctx interface{}) {
 	}
 }
 
+func loadModules() {
+	modDir := workDir + "/" + config.Modules
+	log.Printf("Loading modules from %s", modDir)
+	modPath, err := filepath.Glob(modDir)
+	if err != nil {
+		log.Fatal("Can not parse modules directory")
+	}
+	for _, module := range modPath {
+		moddata, err := os.Open(module)
+		if err != nil {
+			log.Fatal("Can not open module file: ", module, err)
+		}
+		decoder := json.NewDecoder(moddata)
+		modcfg := Module{}
+		err = decoder.Decode(&modcfg)
+		if err != nil {
+			log.Fatal("Can not decode data from module file: ", err)
+		}
+		moddata.Close()
+		if modcfg.Enabled {
+			render_context.Modules = append(render_context.Modules, modcfg)
+		}
+	}
+}
+
 // application init. read configuration file, parse some data from it before the server started
 func init() {
 	// read command line arguments/flags
@@ -107,6 +145,7 @@ func init() {
 
 	// get configuration from defined json file
 	cfg, err := os.Open(*config_file)
+	defer cfg.Close()
 	if err != nil {
 		log.Fatal("Can not open configuration file: ", *config_file, err)
 	}
@@ -124,6 +163,7 @@ func init() {
 	if err != nil {
 		log.Print("Can not get working directory")
 	}
+	loadModules()
 }
 
 // main function. http routes setup and server starts and running here

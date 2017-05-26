@@ -1,5 +1,7 @@
 {
 	"Name": "Testing Module",
+	"Description": "Module for testing purposes",
+	"Author": "Yurii Reshetylo",
 	"Version": "1.0",
 	"Template": "",
 	"Enabled": true,

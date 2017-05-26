@@ -7,6 +7,12 @@
         <h1>Admin Tools release {{.Version}}</h1>
       </div>
       <p class="lead">This tool is meant to help with running command line interface programs from WEB and have results without logging on the server itself.</p>
+      <h3>Loaded modules:</h3>
+      {{range .Modules}}
+          <p class="bg-{{if .Enabled}}success{{else}}warning{{end}}">{{.Name}} {{.Version}} by {{.Author}}
+          {{if .Template}}page: <a href="{{$.BaseURL}}/page/{{.Template}}">{{.Template}}</a>{{end}}
+          <span class="small">{{.Description}}</span></p>
+      {{end}}
     </div>
 
 {{template "footer" .}}

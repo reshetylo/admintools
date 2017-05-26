@@ -1,5 +1,7 @@
 {
-	"Name": "Network Module",
+	"Name": "Network Tools",
+	"Description": "Network-related tools module",
+	"Author": "Yurii Reshetylo",
 	"Version": "1.0",
 	"Template": "network",
 	"Enabled": true,
