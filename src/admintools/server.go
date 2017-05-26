@@ -10,8 +10,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/julienschmidt/httprouter"
 	"path/filepath"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 // configuration file structure
@@ -63,7 +64,7 @@ func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	log.Println("page access", req.Host, req.RequestURI)
 
 	pagename := ps.ByName("page")
-	if _, err := os.Stat(strings.Replace(config.Templates, "*", pagename, 1)); err != nil {
+	if _, err := os.Stat(strings.Replace(workDir+"/"+config.Templates, "*", pagename, 1)); err != nil {
 		pagename = notFoundPage
 		log.Println(notFoundPage, req.Host, req.RequestURI)
 	}
@@ -83,7 +84,7 @@ func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	if ps.ByName("module") != "" {
 		module += ps.ByName("module") + "/"
 	}
-	runfile := workDir + "/" + strings.Replace(config.Modules[:strings.Index(config.Modules,"*")+1], "*", module+ps.ByName("name")+".yaml", 1)
+	runfile := workDir + "/" + strings.Replace(config.Modules[:strings.Index(config.Modules, "*")+1], "*", module+ps.ByName("name")+".yaml", 1)
 	// change work dir
 	//log.Print("Work dir:", workDir+"/"+runfile[:strings.LastIndex(runfile, ps.ByName("name"))])
 	os.Chdir(runfile[:strings.LastIndex(runfile, ps.ByName("name"))])
