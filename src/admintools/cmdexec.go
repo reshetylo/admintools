@@ -1,18 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"time"
-	"io"
-	"os"
 )
 
 const fileCacheTime = 30   // seconds
@@ -104,11 +105,12 @@ func InteractiveExec(w http.ResponseWriter, file string, parameters map[string][
 	if f, ok := w.(http.Flusher); ok {
 		fw.f = f
 	}
+	buf := new(bytes.Buffer)
+	fwErr := flushWriter{w: buf}
 
 	for _, cmd := range filedata.Commands {
-		cmd.Run(&fw, &fw)
+		cmd.Run(&fw, &fwErr)
 	}
-
 }
 
 func RenderFile(file string, parameters map[string][]string, w http.ResponseWriter) {
