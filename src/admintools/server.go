@@ -170,7 +170,7 @@ func init() {
 // main function. http routes setup and server starts and running here
 func main() {
 	// serve files from static folder
-	fileServer := http.FileServer(http.Dir("./static"))
+	fileServer := http.FileServer(http.Dir(workDir + "/static"))
 
 	// router configuration
 	router := httprouter.New()
