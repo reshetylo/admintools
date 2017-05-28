@@ -3,5 +3,6 @@
 	"ServerAddress": ":8000",
 	"Templates": "templates/*.gohtml",
 	"Modules": "modules/*/*.json",
-	"DefaultModule": "network"
+	"DefaultTemplate": "network",
+	"CookieSecret": "supersecretkey"
 }

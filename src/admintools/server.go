@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"html/template"
@@ -17,13 +18,19 @@ import (
 
 // configuration file structure
 type Configuration struct {
-	BaseURL       string
-	ServerAddress string
-	StaticFolder  string
-	StaticAddress string
-	Templates     string
-	Modules       string
-	DefaultModule string
+	BaseURL         string
+	ServerAddress   string
+	StaticFolder    string
+	StaticAddress   string
+	Templates       string
+	Modules         string
+	DefaultTemplate string
+	CookieSecret    string
+	AuthType        string
+	AuthParameters  struct {
+		Endpoint    string
+		RedirectURL string
+	}
 }
 
 // render context structure
@@ -33,6 +40,7 @@ type Context struct {
 	CurrentPage string
 	Version     string
 	BaseURL     string
+	User        string
 	Modules     []Module
 }
 
@@ -56,7 +64,7 @@ var workDir string
 
 // function for index / route. redirects to default module from configuration file
 func Index(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	http.Redirect(w, req, config.BaseURL+"/page/"+config.DefaultModule, 302)
+	http.Redirect(w, req, config.BaseURL+"/page/"+config.DefaultTemplate, 302)
 }
 
 // function for /page/:name routes
@@ -70,6 +78,15 @@ func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	}
 	ctx := render_context
 	ctx.CurrentPage = pagename
+
+	session, err := sessionStore.Get(req, "user-session")
+	if err != nil {
+		http.Error(w, "Can not find session", http.StatusInternalServerError)
+		return
+	}
+	if user, ok := session.Values["user"]; ok {
+		ctx.User = user.(string)
+	}
 	if pagename == notFoundPage {
 		w.WriteHeader(404)
 	}
@@ -102,6 +119,94 @@ func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	}
 }
 
+// function for /auth/:type
+func Auth(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	log.Println("auth access", r.Host, r.RequestURI, ps)
+
+	session, err := sessionStore.Get(r, "user-session")
+	if err != nil {
+		http.Error(w, "Can not find session", http.StatusInternalServerError)
+		return
+	}
+
+	if ps.ByName("type") == "logout" {
+		if config.AuthType == "custom_sso" {
+			session.Options.MaxAge = -1
+			delete(session.Values, "user")
+			err := session.Save(r, w)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			http.Redirect(w, r, config.BaseURL, http.StatusFound)
+			return
+		}
+	}
+
+	if _, ok := session.Values["user"]; ok {
+		http.Redirect(w, r, config.BaseURL, 302)
+		return
+	}
+
+	if ps.ByName("type") == "login" {
+		if config.AuthType == "custom_sso" {
+			t := template.Must(template.New("redirect_url").Parse(config.AuthParameters.RedirectURL))
+			redirectURL := new(bytes.Buffer)
+			t.Execute(redirectURL, render_context)
+			http.Redirect(w, r, redirectURL.String(), 302)
+			return
+		}
+	}
+
+	if ps.ByName("type") != config.AuthType {
+		http.Error(w, "This auth type is not allowed", http.StatusNotAcceptable)
+		return
+	}
+
+	req_url, err := url.ParseRequestURI(r.RequestURI)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	param, err := url.ParseQuery(req_url.RawQuery)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if config.AuthType == "custom_sso" {
+		user := getParamKey(param, "user", 0)
+		hash := getParamKey(param, "hash", 0)
+		log.Printf("User: '%s' Hash: '%s'", user, hash)
+		if hash != "" && user != "" {
+			user_ctx := render_context
+			user_ctx.User = user
+			t := template.Must(template.New("request_url").Parse(config.AuthParameters.Endpoint))
+			getHashURL := new(bytes.Buffer)
+			t.Execute(getHashURL, user_ctx)
+			remoteHash, err := http.Get(getHashURL.String())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			responseBody := new(bytes.Buffer)
+			responseBody.ReadFrom(remoteHash.Body)
+			if responseBody.String() == hash {
+				session, err := sessionStore.Get(r, "user-session")
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				session.Values["user"] = user
+				session.Save(r, w)
+				http.Redirect(w, r, config.BaseURL, 302)
+			}
+		} else {
+			http.Error(w, "User or Hash empty", http.StatusBadRequest)
+			return
+		}
+	}
+}
+
 // render templates helper function
 func render(w http.ResponseWriter, tpl_name string, ctx interface{}) {
 	if ctx == nil {
@@ -111,6 +216,16 @@ func render(w http.ResponseWriter, tpl_name string, ctx interface{}) {
 	if err != nil {
 		log.Println("ERROR Render: ", err)
 	}
+}
+
+func getParamKey(param map[string][]string, key string, idx int) (ret string) {
+	ret = ""
+	if val, ok := param[key]; ok {
+		if len(val) >= idx+1 {
+			ret = val[idx]
+		}
+	}
+	return
 }
 
 func loadModules() {
@@ -165,6 +280,9 @@ func init() {
 		log.Print("Can not get working directory")
 	}
 	loadModules()
+	if config.AuthType != "" {
+		startSessions()
+	}
 }
 
 // main function. http routes setup and server starts and running here
@@ -177,6 +295,9 @@ func main() {
 	router.GET("/", Index)
 	router.GET("/page/:page", Page)
 	router.GET("/api/:module/:name", ApiModule)
+	if config.AuthType != "" {
+		router.GET("/auth/:type", Auth)
+	}
 	router.GET("/static/*filepath", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		w.Header().Set("Vary", "Accept-Encoding")
 		w.Header().Set("Cache-Control", "public, max-age=432000") // 5 day cache
