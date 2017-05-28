@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"flag"
 	"html/template"
@@ -27,6 +26,7 @@ type Configuration struct {
 	DefaultTemplate string
 	CookieSecret    string
 	AuthType        string
+	AuthName        string
 	AuthParameters  struct {
 		Endpoint    string
 		RedirectURL string
@@ -41,6 +41,7 @@ type Context struct {
 	Version     string
 	BaseURL     string
 	User        string
+	AuthName    string
 	Modules     []Module
 }
 
@@ -68,26 +69,26 @@ func Index(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 }
 
 // function for /page/:name routes
-func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	log.Println("page access", req.Host, req.RequestURI)
+func Page(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	log.Println("page access", r.Host, r.RequestURI)
+
+	session := getUserSession(w, r)
 
 	pagename := ps.ByName("page")
+	if !session.hasModuleAccess(pagename, render_context.Modules) {
+		pagename = "no_access"
+		w.WriteHeader(http.StatusUnauthorized)
+	}
 	if _, err := os.Stat(strings.Replace(workDir+"/"+config.Templates, "*", pagename, 1)); err != nil {
 		pagename = notFoundPage
-		log.Println(notFoundPage, req.Host, req.RequestURI)
+		log.Println(notFoundPage, r.Host, r.RequestURI)
 	}
 	ctx := render_context
 	ctx.CurrentPage = pagename
-
-	log.Print(req)
-	session, err := sessionStore.Get(req, "user-session")
-	if err != nil {
-		http.Error(w, "Can not find session", http.StatusInternalServerError)
-		return
+	if user, ok := session.isAuthenticated(); ok {
+		ctx.User = user
 	}
-	if user, ok := session.Values["user"]; ok {
-		ctx.User = user.(string)
-	}
+	ctx.Modules = session.filterModules(render_context.Modules)
 	if pagename == notFoundPage {
 		w.WriteHeader(404)
 	}
@@ -95,8 +96,8 @@ func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 }
 
 // function for /api/:name routes
-func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	log.Println("api access", req.Host, req.RequestURI)
+func ApiModule(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	log.Println("api access", r.Host, r.RequestURI)
 
 	module := ""
 	if ps.ByName("module") != "" {
@@ -106,9 +107,9 @@ func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	// change work dir
 	//log.Print("Work dir:", workDir+"/"+runfile[:strings.LastIndex(runfile, ps.ByName("name"))])
 	os.Chdir(runfile[:strings.LastIndex(runfile, ps.ByName("name"))])
-	req_url, puerr := url.ParseRequestURI(req.RequestURI)
+	req_url, puerr := url.ParseRequestURI(r.RequestURI)
 	if puerr != nil {
-		log.Print("Can not parse request URL: ", puerr, req)
+		log.Print("Can not parse request URL: ", puerr, r)
 	}
 	param, pqerr := url.ParseQuery(req_url.RawQuery)
 	if pqerr != nil {
@@ -124,36 +125,19 @@ func ApiModule(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 func Auth(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	log.Println("auth access", r.Host, r.RequestURI, ps)
 
-	session, err := sessionStore.Get(r, "user-session")
-	if err != nil {
-		http.Error(w, "Can not find session", http.StatusInternalServerError)
-		return
-	}
+	session := getUserSession(w, r)
 
-	if ps.ByName("type") == "logout" {
-		if config.AuthType == "custom_sso" {
-			session.Options.MaxAge = -1
-			delete(session.Values, "user")
-			err := session.Save(r, w)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-			http.Redirect(w, r, config.BaseURL, http.StatusFound)
+	switch action := ps.ByName("type"); action {
+	case "logout":
+		session.Logout()
+		return
+	case "login":
+		if user, ok := session.isAuthenticated(); ok {
+			log.Print(user, " is already authenticated")
+			http.Redirect(w, r, config.BaseURL, 302)
 			return
-		}
-	}
-
-	if _, ok := session.Values["user"]; ok {
-		http.Redirect(w, r, config.BaseURL, 302)
-		return
-	}
-
-	if ps.ByName("type") == "login" {
-		if config.AuthType == "custom_sso" {
-			t := template.Must(template.New("redirect_url").Parse(config.AuthParameters.RedirectURL))
-			redirectURL := new(bytes.Buffer)
-			t.Execute(redirectURL, render_context)
-			http.Redirect(w, r, redirectURL.String(), 302)
+		} else {
+			session.Login()
 			return
 		}
 	}
@@ -173,39 +157,8 @@ func Auth(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	if config.AuthType == "custom_sso" {
-		user := getParamKey(param, "user", 0)
-		hash := getParamKey(param, "hash", 0)
-		log.Printf("User: '%s' Hash: '%s'", user, hash)
-		if hash != "" && user != "" {
-			user_ctx := render_context
-			user_ctx.User = user
-			t := template.Must(template.New("request_url").Parse(config.AuthParameters.Endpoint))
-			getHashURL := new(bytes.Buffer)
-			t.Execute(getHashURL, user_ctx)
-			remoteHash, err := http.Get(getHashURL.String())
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			responseBody := new(bytes.Buffer)
-			responseBody.ReadFrom(remoteHash.Body)
-			if responseBody.String() == hash {
-				session, err := sessionStore.Get(r, "user-session")
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-				session.Values["user"] = user
-				session.Save(r, w)
-				http.Redirect(w, r, config.BaseURL, 302)
-			}
-		} else {
-			http.Error(w, "User or Hash empty", http.StatusBadRequest)
-			return
-		}
-	}
+	// checked all required fields, authenticate this user
+	session.Authenticate(param)
 }
 
 // render templates helper function
@@ -275,6 +228,7 @@ func init() {
 	// application init. parse templates and define Base URL value in global render context
 	tpl = template.Must(template.ParseGlob(config.Templates))
 	render_context.BaseURL = config.BaseURL
+	render_context.AuthName = config.AuthName
 
 	workDir, err = os.Getwd()
 	if err != nil {

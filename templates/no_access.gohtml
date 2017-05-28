@@ -1,0 +1,11 @@
+{{template "header" .}}
+{{template "menu" .}}
+    
+    <div class="container">
+      <div class="page-header">
+        <h1>Not Authorized for this page</h1>
+      </div>
+      <p class="lead">Try to <a href="{{.BaseURL}}/auth/login">Login</a> first</p>
+    </div>
+
+{{template "footer" .}}
