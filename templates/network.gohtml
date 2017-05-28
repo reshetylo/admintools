@@ -95,6 +95,13 @@ function load_data(clicked_button, dest, request_url){
 			$btn.button('reset');
 		});
 }
+
+$("form").keypress(function(event) {
+    if (event.which == 13) {
+        event.preventDefault();
+		$(this).find("button").click();
+    }
+});
 </script>
 {{ end }}
 
