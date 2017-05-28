@@ -47,13 +47,14 @@ type Context struct {
 
 // module.json format
 type Module struct {
-	Name        string `json:"Name"`
-	Description string `json:"Description"`
-	Author      string `json:"Author"`
-	Version     string `json:"Version"`
-	Template    string `json:"Template"`
-	Enabled     bool   `json:"Enabled"`
-	AccessLevel string `json:"AccessLevel"`
+	Name         string `json:"Name"`
+	Description  string `json:"Description"`
+	Author       string `json:"Author"`
+	Version      string `json:"Version"`
+	Template     string `json:"Template"`
+	Enabled      bool   `json:"Enabled"`
+	AccessLevel  string `json:"AccessLevel"`
+	HideFromMenu bool   `json:"HideFromMenu"`
 }
 
 const notFoundPage = "not_found"

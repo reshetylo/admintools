@@ -112,7 +112,7 @@ func (s *CustomSessions) filterModules(modules []Module) []Module {
 	for idx, module := range modules {
 		if module.AccessLevel == "guest" {
 			modules_ret = append(modules_ret, modules[idx])
-		} else if module.AccessLevel != "guest" && permissions != false {
+		} else if (module.AccessLevel != "guest" && permissions != false) || module.HideFromMenu == false {
 			modules_ret = append(modules_ret, modules[idx])
 		}
 	}
