@@ -8,5 +8,4 @@ var sessionStore *sessions.CookieStore
 
 func startSessions() {
 	sessionStore = sessions.NewCookieStore([]byte(config.CookieSecret))
-
 }

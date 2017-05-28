@@ -10,6 +10,7 @@
 	  <!-- Nav tabs -->
 	  <ul class="nav nav-tabs" role="tablist">
 	    <li role="presentation" class="active"><a href="#ping" aria-controls="ping" role="tab" data-toggle="tab">ping</a></li>
+	    <li role="presentation"><a href="#telnet" aria-controls="telnet" role="tab" data-toggle="tab">telnet</a></li>
 	    <li role="presentation"><a href="#traceroute" aria-controls="traceroute" role="tab" data-toggle="tab">traceroute</a></li>
 	    <li role="presentation"><a href="#dig" aria-controls="dig" role="tab" data-toggle="tab">dig</a></li>
 	    <li role="presentation"><a href="#nslookup" aria-controls="nslookup" role="tab" data-toggle="tab">nslookup</a></li>
@@ -27,10 +28,24 @@
 			</form>
 			<textarea id="response_area1" class="form-control" rows="20" readonly></textarea>
 		</div>
+	    <div role="tabpanel" class="tab-pane fade" id="telnet">
+			<form class="form-inline">
+			  <div class="form-group">
+			    <label for="telnet_host">Host or IP</label>&nbsp;
+			    <input type="text" class="form-control" id="telnet_host" placeholder="google.com">
+			  </div>
+			  <div class="form-group">
+                <label for="telnet_port">Port</label>&nbsp;
+                <input type="text" class="form-control" id="telnet_port" placeholder="443">
+              </div>
+			  <button type="button" id="button_telnet" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area2', '{{.BaseURL}}/api/net/telnet?host='+$('#telnet_host').val()+'&port='+$('#telnet_port').val())" autocomplete="off">Run</button>
+			</form>
+			<textarea id="response_area2" class="form-control" rows="20" readonly></textarea>
+		</div>
 	    <div role="tabpanel" class="tab-pane fade" id="traceroute">
 			<form class="form-inline">
 			  <div class="form-group">
-			    <label for="ping_host">Host or IP</label>&nbsp;
+			    <label for="traceroute_host">Host or IP</label>&nbsp;
 			    <input type="text" class="form-control" id="traceroute_host" placeholder="gooogle.com">
 			  </div>
 			  <button type="button" id="button_traceroute" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area2', '{{.BaseURL}}/api/net/traceroute?host='+$('#traceroute_host').val())" autocomplete="off">Run</button>
@@ -40,10 +55,20 @@
 	    <div role="tabpanel" class="tab-pane fade" id="dig">
 			<form class="form-inline">
 			  <div class="form-group">
-			    <label for="ping_host">Domain name</label>&nbsp;
+			    <label for="dig_host">Domain name</label>&nbsp;
 			    <input type="text" class="form-control" id="dig_host" placeholder="gooogle.com">
 			  </div>
-			  <button type="button" id="button_dig" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area3', '{{.BaseURL}}/api/net/dig?host='+$('#dig_host').val())" autocomplete="off">Run</button>
+			  <div class="form-group">
+                <label for="dns_server">DNS Server</label>&nbsp;
+                 <select id="dns_server" class="form-control" name="dns">
+                    <option value="8.8.8.8" selected>Google DNS (8.8.8.8)</option>
+                    <option value="209.244.0.3">Level3 (209.244.0.3)</option>
+                    <option value="64.6.64.6">Verisign (64.6.64.6)</option>
+                    <option value="208.67.222.222">OpenDNS (208.67.222.222)</option>
+                    <option value="37.235.1.174">FreeDNS (37.235.1.174)</option>
+                 </select>
+              </div>
+			  <button type="button" id="button_dig" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area3', '{{.BaseURL}}/api/net/dig?host='+$('#dig_host').val()+'&dns='+$('#dns_server').val())" autocomplete="off">Run</button>
 			</form>
 			<textarea id="response_area3" class="form-control" rows="20" readonly></textarea>
 		</div>

@@ -1,8 +1,9 @@
 name: dig
 version: 1.0
-default_timeout: 10
+default_timeout: 15
 commands:
     -
-        command: "dig {{host}}"
+        command: "dig {{host}} @{{dns}}"
         required:
             - host: '\A([0-9]{3}.[0-9]{3}.[0-9]{3}.[0-9]{3}|[0-9A-Za-z._-]+)\z'
+            - dns: '\A([0-9]{3}.[0-9]{3}.[0-9]{3}.[0-9]{3}|[0-9A-Za-z._-]+)\z'

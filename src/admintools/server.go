@@ -79,6 +79,7 @@ func Page(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	ctx := render_context
 	ctx.CurrentPage = pagename
 
+	log.Print(req)
 	session, err := sessionStore.Get(req, "user-session")
 	if err != nil {
 		http.Error(w, "Can not find session", http.StatusInternalServerError)
@@ -280,9 +281,7 @@ func init() {
 		log.Print("Can not get working directory")
 	}
 	loadModules()
-	if config.AuthType != "" {
-		startSessions()
-	}
+	startSessions()
 }
 
 // main function. http routes setup and server starts and running here
