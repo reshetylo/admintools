@@ -71,9 +71,15 @@ func Index(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 
 // function for /page/:name routes
 func Page(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	log.Println("page access", r.Host, r.RequestURI)
-
+	// get session for each request
 	session := getUserSession(w, r)
+	username := ""
+	if user, ok := session.isAuthenticated(); ok {
+		log.Println("page access from ", user, r.Host, r.RequestURI)
+		username = user
+	} else {
+		log.Println("page access", r.Host, r.RequestURI)
+	}
 
 	pagename := ps.ByName("page")
 	if !session.hasModuleAccess(pagename, render_context.Modules) {
@@ -86,9 +92,7 @@ func Page(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 	ctx := render_context
 	ctx.CurrentPage = pagename
-	if user, ok := session.isAuthenticated(); ok {
-		ctx.User = user
-	}
+	ctx.User = username
 	ctx.Modules = session.filterModules(render_context.Modules)
 	if pagename == notFoundPage {
 		w.WriteHeader(404)
@@ -98,7 +102,13 @@ func Page(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 // function for /api/:name routes
 func ApiModule(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	log.Println("api access", r.Host, r.RequestURI)
+	// get session for each request
+	session := getUserSession(w, r)
+	if user, ok := session.isAuthenticated(); ok {
+		log.Println("api access from ", user, r.Host, r.RequestURI)
+	} else {
+		log.Println("api access", r.Host, r.RequestURI)
+	}
 
 	module := ""
 	if ps.ByName("module") != "" {
@@ -115,6 +125,11 @@ func ApiModule(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	param, pqerr := url.ParseQuery(req_url.RawQuery)
 	if pqerr != nil {
 		log.Print("Can not parse request Query: ", pqerr, req_url)
+	}
+	if r.Method == "POST" {
+		r.ParseForm()
+		param = r.Form
+		log.Println("via POST", r.Form, "Param: ", param)
 	}
 	if _, err := os.Stat(runfile); err == nil {
 		//RenderFile(runfile, param, w)
@@ -249,6 +264,7 @@ func main() {
 	router.GET("/", Index)
 	router.GET("/page/:page", Page)
 	router.GET("/api/:module/:name", ApiModule)
+	router.POST("/api/:module/:name", ApiModule)
 	if config.AuthType != "" {
 		router.GET("/auth/:type", Auth)
 	}

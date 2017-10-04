@@ -1,0 +1,9 @@
+{
+	"Name": "Feedback",
+	"Description": "Feedback module",
+	"Author": "Yurii Reshetylo",
+	"Version": "1.0",
+	"Template": "feedback",
+	"Enabled": false,
+	"AccessLevel": "guest"
+}

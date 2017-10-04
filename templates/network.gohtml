@@ -48,9 +48,9 @@
 			    <label for="traceroute_host">Host or IP</label>&nbsp;
 			    <input type="text" class="form-control" id="traceroute_host" placeholder="gooogle.com">
 			  </div>
-			  <button type="button" id="button_traceroute" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area2', '{{.BaseURL}}/api/net/traceroute?host='+$('#traceroute_host').val())" autocomplete="off">Run</button>
+			  <button type="button" id="button_traceroute" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area3', '{{.BaseURL}}/api/net/traceroute?host='+$('#traceroute_host').val())" autocomplete="off">Run</button>
 			</form>
-			<textarea id="response_area2" class="form-control" rows="20" readonly></textarea>
+			<textarea id="response_area3" class="form-control" rows="20" readonly></textarea>
 		</div>
 	    <div role="tabpanel" class="tab-pane fade" id="dig">
 			<form class="form-inline">
@@ -68,9 +68,9 @@
                     <option value="37.235.1.174">FreeDNS (37.235.1.174)</option>
                  </select>
               </div>
-			  <button type="button" id="button_dig" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area3', '{{.BaseURL}}/api/net/dig?host='+$('#dig_host').val()+'&dns='+$('#dns_server').val())" autocomplete="off">Run</button>
+			  <button type="button" id="button_dig" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area4', '{{.BaseURL}}/api/net/dig?host='+$('#dig_host').val()+'&dns='+$('#dns_server').val())" autocomplete="off">Run</button>
 			</form>
-			<textarea id="response_area3" class="form-control" rows="20" readonly></textarea>
+			<textarea id="response_area4" class="form-control" rows="20" readonly></textarea>
 		</div>
 	    <div role="tabpanel" class="tab-pane fade" id="nslookup">
 			<form class="form-inline">
@@ -78,15 +78,14 @@
 			    <label for="ping_host">Host or IP</label>&nbsp;
 			    <input type="text" class="form-control" id="nslookup_host" placeholder="gooogle.com">
 			  </div>
-			  <button type="button" id="button_nslookup" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area4', '{{.BaseURL}}/api/net/nslookup?host='+$('#nslookup_host').val())" autocomplete="off">Run</button>
+			  <button type="button" id="button_nslookup" data-loading-text="<img src='{{.BaseURL}}/static/loading.gif' /> Loading..." class="btn btn-primary" onclick="load_data($(this), '#response_area5', '{{.BaseURL}}/api/net/nslookup?host='+$('#nslookup_host').val())" autocomplete="off">Run</button>
 			</form>
-			<textarea id="response_area4" class="form-control" rows="20" readonly></textarea>
+			<textarea id="response_area5" class="form-control" rows="20" readonly></textarea>
 		</div>
 	  </div>
 	</div>
 </div>
 
-{{ define "scripts" }}
 <script>
 function load_data(clicked_button, dest, request_url){
 	var $btn = clicked_button.button('loading');
@@ -96,13 +95,14 @@ function load_data(clicked_button, dest, request_url){
 		});
 }
 
+window.onload = function() {
 $("form").keypress(function(event) {
     if (event.which == 13) {
         event.preventDefault();
 		$(this).find("button").click();
     }
 });
+};
 </script>
-{{ end }}
 
 {{template "footer" .}}

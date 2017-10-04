@@ -1,0 +1,10 @@
+name: feedback
+version: 1.0
+default_timeout: 15
+commands:
+    -
+        command: "./feedback.sh {{user}} {{subject}} {{body}}"
+        required:
+            - user: '\A(.*)\z'
+            - subject: '\A(.*)\z'
+            - body: '\A(.*)\z'
